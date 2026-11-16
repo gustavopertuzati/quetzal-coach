@@ -1,4 +1,5 @@
-// Stockage cloud : PostgreSQL sur Orkestr, avec repli JSON pour le dev local.
+// Stockage cloud : GitHub (dépôt privé de données) sur Orkestr.
+// Repli PostgreSQL si DATABASE_URL, puis JSON local pour le dev.
 const fs = require('fs');
 const path = require('path');
 
@@ -8,6 +9,9 @@ const NZ_FILE = path.join(DATA, 'cloud-nuzlocke.json');
 const IDEAS_FILE = path.join(DATA, 'cloud-ideas.json');
 
 const DATABASE_URL = process.env.DATABASE_URL || '';
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+const GITHUB_REPO = process.env.GITHUB_DATA_REPO || '';
+const GITHUB_ENABLED = !!(GITHUB_TOKEN && GITHUB_REPO);
 let pool = null;
 
 function readJson(file, fallback) {
@@ -24,9 +28,74 @@ if (!Array.isArray(memSaves)) memSaves = [];
 if (!memNz || typeof memNz !== 'object' || Array.isArray(memNz)) memNz = {};
 if (!Array.isArray(memIdeas)) memIdeas = [];
 
+// ---- GitHub contents API (dépôt privé) ----
+const ghCache = new Map();
+const GH_TTL = 3000;
+const GH_API = 'https://api.github.com';
+
+async function ghRequest(pathname, opts = {}) {
+  const r = await fetch(GH_API + pathname, {
+    ...opts,
+    headers: {
+      Authorization: 'Bearer ' + GITHUB_TOKEN,
+      Accept: 'application/vnd.github+json',
+      'User-Agent': 'quetzal-coach',
+      ...(opts.headers || {}),
+    },
+  });
+  return r;
+}
+
+async function ghGet(file, { force = false } = {}) {
+  const cached = ghCache.get(file);
+  if (!force && cached && Date.now() - cached.at < GH_TTL) return cached;
+  const r = await ghRequest(`/repos/${GITHUB_REPO}/contents/${encodeURIComponent(file)}`);
+  if (r.status === 404) {
+    const miss = { data: null, sha: null, at: Date.now() };
+    ghCache.set(file, miss);
+    return miss;
+  }
+  if (!r.ok) throw new Error('GitHub GET ' + r.status);
+  const j = await r.json();
+  const text = Buffer.from(String(j.content || '').replace(/\s+/g, ''), 'base64').toString('utf8');
+  const entry = { data: text ? JSON.parse(text) : null, sha: j.sha, at: Date.now() };
+  ghCache.set(file, entry);
+  return entry;
+}
+
+async function ghPut(file, data, sha, message) {
+  const body = {
+    message: message || ('update ' + file),
+    content: Buffer.from(JSON.stringify(data, null, 1), 'utf8').toString('base64'),
+  };
+  if (sha) body.sha = sha;
+  const r = await ghRequest(`/repos/${GITHUB_REPO}/contents/${encodeURIComponent(file)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) {
+    const t = await r.text();
+    throw new Error('GitHub PUT ' + r.status + ' ' + t.slice(0, 120));
+  }
+  const j = await r.json();
+  ghCache.set(file, { data, sha: j.content && j.content.sha, at: Date.now() });
+  return j.content && j.content.sha;
+}
+
+// ---- init ----
 async function init() {
+  if (GITHUB_ENABLED) {
+    const nz = await ghGet('nuzlocke.json', { force: true });
+    if (!nz.data) {
+      const seed = readJson(path.join(DATA, 'nuzlocke.json'), {});
+      await ghPut('nuzlocke.json', seed, null, 'init nuzlocke');
+    }
+    console.log('DB: GitHub ' + GITHUB_REPO);
+    return;
+  }
   if (!DATABASE_URL) {
-    console.log('DB: mode JSON local (pas de DATABASE_URL)');
+    console.log('DB: mode JSON local (pas de DATABASE_URL/GitHub)');
     return;
   }
   const { Pool } = require('pg');
@@ -65,7 +134,18 @@ async function init() {
   console.log('DB: PostgreSQL connecté');
 }
 
+function storageMode() {
+  if (GITHUB_ENABLED) return 'github';
+  if (pool) return 'postgres';
+  return 'json';
+}
+
+// ---- sauvegardes ----
 async function listSaves() {
+  if (GITHUB_ENABLED) {
+    const r = await ghGet('saves.json');
+    return Array.isArray(r.data) ? r.data : [];
+  }
   if (!pool) return memSaves.slice();
   const r = await pool.query('SELECT data FROM saves ORDER BY profile, player');
   return r.rows.map(x => x.data);
@@ -73,6 +153,16 @@ async function listSaves() {
 
 async function upsertSaves(saves) {
   const list = (saves || []).filter(s => s && s.profile && s.player);
+  if (GITHUB_ENABLED) {
+    const r = await ghGet('saves.json', { force: true });
+    const current = Array.isArray(r.data) ? r.data.slice() : [];
+    for (const s of list) {
+      const i = current.findIndex(x => x.profile === s.profile && x.player === s.player);
+      if (i >= 0) current[i] = s; else current.push(s);
+    }
+    await ghPut('saves.json', current, r.sha, 'sync saves');
+    return list.length;
+  }
   if (!pool) {
     for (const s of list) {
       const i = memSaves.findIndex(x => x.profile === s.profile && x.player === s.player);
@@ -91,7 +181,12 @@ async function upsertSaves(saves) {
   return list.length;
 }
 
+// ---- nuzlocke ----
 async function getNuzlocke() {
+  if (GITHUB_ENABLED) {
+    const r = await ghGet('nuzlocke.json');
+    return r.data && typeof r.data === 'object' ? r.data : {};
+  }
   if (!pool) return { ...memNz };
   const r = await pool.query('SELECT key FROM nuzlocke WHERE dead = true');
   const out = {};
@@ -100,6 +195,13 @@ async function getNuzlocke() {
 }
 
 async function setNuzlocke(key, dead) {
+  if (GITHUB_ENABLED) {
+    const r = await ghGet('nuzlocke.json', { force: true });
+    const data = r.data && typeof r.data === 'object' ? { ...r.data } : {};
+    if (dead) data[key] = true; else delete data[key];
+    await ghPut('nuzlocke.json', data, r.sha, 'nuzlocke ' + (dead ? 'dead' : 'alive'));
+    return data;
+  }
   if (!pool) {
     if (dead) memNz[key] = true; else delete memNz[key];
     writeJson(NZ_FILE, memNz);
@@ -113,19 +215,40 @@ async function setNuzlocke(key, dead) {
   return getNuzlocke();
 }
 
+// ---- idées ----
 async function listIdeas() {
+  if (GITHUB_ENABLED) {
+    const r = await ghGet('ideas.json');
+    return Array.isArray(r.data) ? r.data : [];
+  }
   if (!pool) return memIdeas.slice();
   const r = await pool.query('SELECT id, text, kind, done, created_at FROM ideas ORDER BY created_at DESC');
   return r.rows.map(x => ({ id: x.id, text: x.text, kind: x.kind, done: x.done, createdAt: x.created_at }));
 }
 
 async function addIdea(idea) {
+  if (GITHUB_ENABLED) {
+    const r = await ghGet('ideas.json', { force: true });
+    const data = Array.isArray(r.data) ? r.data.slice() : [];
+    data.push(idea);
+    await ghPut('ideas.json', data, r.sha, 'add idea');
+    return idea;
+  }
   if (!pool) { memIdeas.push(idea); writeJson(IDEAS_FILE, memIdeas); return idea; }
   await pool.query('INSERT INTO ideas(id, text, kind, done, created_at) VALUES($1,$2,$3,$4,$5)', [idea.id, idea.text, idea.kind, false, idea.createdAt]);
   return idea;
 }
 
 async function patchIdea(id, done) {
+  if (GITHUB_ENABLED) {
+    const r = await ghGet('ideas.json', { force: true });
+    const data = Array.isArray(r.data) ? r.data.slice() : [];
+    const x = data.find(i => i.id === id);
+    if (!x) return null;
+    x.done = done;
+    await ghPut('ideas.json', data, r.sha, 'update idea');
+    return x;
+  }
   if (!pool) {
     const x = memIdeas.find(i => i.id === id);
     if (x) x.done = done;
@@ -138,6 +261,12 @@ async function patchIdea(id, done) {
 }
 
 async function deleteIdea(id) {
+  if (GITHUB_ENABLED) {
+    const r = await ghGet('ideas.json', { force: true });
+    const data = Array.isArray(r.data) ? r.data.filter(i => i.id !== id) : [];
+    await ghPut('ideas.json', data, r.sha, 'delete idea');
+    return;
+  }
   if (!pool) {
     const i = memIdeas.findIndex(x => x.id === id);
     if (i >= 0) memIdeas.splice(i, 1);
@@ -149,6 +278,7 @@ async function deleteIdea(id) {
 
 module.exports = {
   init,
+  storageMode,
   listSaves,
   upsertSaves,
   getNuzlocke,

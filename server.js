@@ -441,7 +441,7 @@ app.delete('/api/ideas/:id', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, app: 'quetzal-coach', db: !!process.env.DATABASE_URL });
+  res.json({ ok: true, app: 'quetzal-coach', storage: db.storageMode() });
 });
 
 // ---- Synchronisation depuis le PC (lecture des .sav) ----
@@ -550,7 +550,7 @@ async function start() {
     console.log('Quetzal Coach (cloud):');
     console.log('  Port    : ' + PORT);
     console.log('  Public  : ' + (PUBLIC_URL || 'non défini'));
-    console.log('  DB      : ' + (process.env.DATABASE_URL ? 'PostgreSQL' : 'JSON local'));
+    console.log('  Storage : ' + db.storageMode());
   });
 }
 start();
