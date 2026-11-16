@@ -241,13 +241,20 @@ async function getPublicUrl() {
   return publicUrlCache.url;
 }
 
+function publicUrlFor(req) {
+  const host = String((req.headers['x-forwarded-host'] || '').split(',')[0]).trim();
+  const proto = String((req.headers['x-forwarded-proto'] || 'https').split(',')[0]).trim();
+  if (host) return proto + '://' + host;
+  return PUBLIC_URL || null;
+}
+
 app.get('/api/network', async (req, res) => {
   const local = `http://${IP}:${PORT}`;
-  res.json({ ip: IP, url: local, localUrl: local, publicUrl: await getPublicUrl() });
+  res.json({ ip: IP, url: local, localUrl: local, publicUrl: publicUrlFor(req) || await getPublicUrl() });
 });
 
 app.get('/api/public-url', async (req, res) => {
-  res.json({ url: await getPublicUrl() });
+  res.json({ url: publicUrlFor(req) || await getPublicUrl() });
 });
 
 app.get('/api/qr', async (req, res) => {
