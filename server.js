@@ -242,10 +242,11 @@ async function getPublicUrl() {
 }
 
 function publicUrlFor(req) {
+  if (PUBLIC_URL) return PUBLIC_URL;
   const host = String((req.headers['x-forwarded-host'] || '').split(',')[0]).trim();
   const proto = String((req.headers['x-forwarded-proto'] || 'https').split(',')[0]).trim();
   if (host) return proto + '://' + host;
-  return PUBLIC_URL || null;
+  return null;
 }
 
 app.get('/api/network', async (req, res) => {
