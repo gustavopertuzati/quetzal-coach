@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Quetzal Coach</title>
+  <meta name="theme-color" content="#0b1220">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <h1>Quetzal Coach</h1>
+      <p id="subtitle">Matchups & sauvegardes</p>
+    </div>
+    <div class="top-actions">
+      <button id="whoBtn" class="player-btn" aria-label="Changer de joueur">
+        <span class="player-dot">👤</span>
+        <span id="whoName">Joueur</span>
+      </button>
+      <button id="shareBtn" class="icon-btn" aria-label="Partager">QR</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="view-trainers" class="view active">
+      <div class="search-row">
+        <input id="search" type="search" placeholder="Rechercher un dresseur, un lieu…" autocomplete="off">
+      </div>
+      <div class="chips" id="chips">
+        <button class="chip active" data-filter="boss">Boss</button>
+        <button class="chip" data-filter="gym">Arènes</button>
+        <button class="chip" data-filter="league">Ligue</button>
+        <button class="chip" data-filter="all">Tous</button>
+      </div>
+      <div id="trainerList" class="list"></div>
+    </section>
+
+    <section id="view-trainer" class="view">
+      <button class="back" id="backTrainer">← Retour</button>
+      <div id="trainerDetail"></div>
+    </section>
+
+    <section id="view-team" class="view">
+      <div class="section-head">
+        <h2 id="teamTitle">Mon équipe</h2>
+        <button id="addPokemon" class="primary">+ Pokémon</button>
+      </div>
+      <div id="teamSync" class="sync-line"></div>
+      <div id="teamList" class="list"></div>
+      <p class="hint" id="teamHint">Niveau + stats calculés automatiquement (IV 31, EVs selon le preset).</p>
+    </section>
+
+    <section id="view-matchup" class="view">
+      <div class="section-head">
+        <h2>Matchup</h2>
+        <select id="trainerSelect"></select>
+      </div>
+      <label class="auto-level"><input type="checkbox" id="autoLevel" checked> Niveaux dresseur auto (mon équipe)</label>
+      <div id="matchupSummary" class="summary"></div>
+      <div id="matchupGrid" class="grid-wrap"></div>
+    </section>
+
+    <section id="view-boxes" class="view">
+      <div class="section-head">
+        <h2>Pokémon des sauvegardes</h2>
+        <button id="refreshSaves" class="chip">Rafraîchir</button>
+      </div>
+      <div id="savePlayers" class="chips save-players"></div>
+      <div id="saveMeta" class="sync-line"></div>
+      <div id="saveBoxes"></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button data-view="trainers" class="active">Dresseurs</button>
+    <button data-view="team">Équipe</button>
+    <button data-view="boxes">Boîtes</button>
+    <button data-view="matchup">Matchup</button>
+  </nav>
+
+  <div id="playerGate" class="gate hidden">
+    <div class="gate-inner">
+      <h2>Qui joue ?</h2>
+      <p class="gate-sub">Choisis ton joueur : l’app lit son équipe et ses boîtes dans la dernière sauvegarde.</p>
+      <div class="gate-label">Depuis la dernière sauvegarde</div>
+      <div id="saveChoices" class="list"></div>
+      <button id="logoutBtn" class="ghost hidden">Se déconnecter</button>
+      <p class="hint">Les sauvegardes sont lues en lecture seule. Le bouton Rafraîchir de l’onglet Boîtes recharge les dernières données.</p>
+    </div>
+  </div>
+
+  <button id="ideaFab" class="fab" aria-label="Idées et améliorations">
+    💡<span id="ideaBadge" class="fab-badge hidden">0</span>
+  </button>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="modalTitle">Titre</h3>
+        <button id="modalClose" class="icon-btn" aria-label="Fermer">✕</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <datalist id="movesDatalist"></datalist>
+  <datalist id="abilitiesDatalist"></datalist>
+
+  <script src="app.js"></script>
+</body>
+</html>

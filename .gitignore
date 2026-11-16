@@ -1,0 +1,5 @@
+node_modules/
+data/cloud-*.json
+sync-orkestr.json
+sync-orkestr.example.json
+.env
