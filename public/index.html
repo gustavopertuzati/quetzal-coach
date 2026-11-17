@@ -81,6 +81,19 @@
         <h2>Run Nuzlocke</h2>
         <span id="runSync" class="sync-line"></span>
       </div>
+      <div class="ask-box">
+        <input id="askInput" placeholder="Pose une question au guide… (ex. Comment battre Wattson ?)" autocomplete="off">
+        <button id="askMic" class="icon-btn ask-mic" aria-label="Question vocale en français" title="Parler en français">🎤</button>
+        <button id="askBtn" class="primary" aria-label="Demander au guide">✨</button>
+      </div>
+      <div id="askVoiceStatus" class="hint ask-voice-status"></div>
+      <div id="askSuggest" class="chips ask-suggest">
+        <button class="chip" data-ask="Quelle est la prochaine arène ?">Prochaine arène</button>
+        <button class="chip" data-ask="Quel est le level cap actuel ?">Level cap</button>
+        <button class="chip" data-ask="Où trouver Dreepy ?">Dreepy</button>
+        <button class="chip" data-ask="Comment battre Wattson ?">Wattson</button>
+      </div>
+      <div id="askAnswer"></div>
       <div id="runPlayers" class="chips save-players"></div>
       <div id="runDashboard" class="summary"></div>
       <div id="runNext"></div>

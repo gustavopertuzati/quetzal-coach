@@ -640,6 +640,46 @@ main { padding: 12px 12px 8px; }
   grid-column: 1 / -1; font-size: 10px; color: #fbbf24; margin-top: -2px;
 }
 
+/* ---- Recherche IA dans le guide ---- */
+.ask-box { display: flex; gap: 8px; margin: 6px 0 6px; }
+.ask-box input {
+  flex: 1; min-width: 0; min-height: 44px;
+  border-radius: 11px; border: 1px solid var(--line);
+  background: var(--card); color: var(--text);
+  padding: 0 12px; font-size: 13px; outline: none;
+}
+.ask-box input:focus { border-color: var(--accent); }
+.ask-box .primary { min-width: 48px; padding: 0; font-size: 17px; }
+.ask-mic { flex: 0 0 auto; font-size: 16px; }
+.ask-mic.listening {
+  background: var(--accent);
+  color: #04121a;
+  border-color: var(--accent);
+  animation: askPulse 1s infinite;
+}
+.ask-mic.unsupported { opacity: .35; }
+@keyframes askPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, .45); }
+  50% { box-shadow: 0 0 0 7px rgba(34, 211, 238, 0); }
+}
+.ask-voice-status { min-height: 14px; margin: 0 2px 6px; }
+.ask-suggest { margin-bottom: 8px; }
+.ask-answer { margin-bottom: 12px; border-left: 3px solid var(--accent); }
+.ask-q { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.ask-a { font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
+.ask-card-team { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.ask-card-team span { font-size: 10px; padding: 3px 7px; border-radius: 7px; background: var(--card2); color: #c9d7f2; }
+.ask-sources { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 6px; }
+.ask-sources summary { cursor: pointer; font-size: 11px; color: var(--accent); font-weight: 700; }
+.ask-source { margin-top: 6px; font-size: 11px; }
+.ask-source a { color: var(--accent); font-weight: 700; text-decoration: none; }
+.ask-excerpt {
+  margin-top: 3px; padding: 7px 8px; border-radius: 8px;
+  background: var(--card2); color: var(--muted); font-size: 10px;
+  max-height: 150px; overflow-y: auto; line-height: 1.4;
+}
+
+
 
 
 

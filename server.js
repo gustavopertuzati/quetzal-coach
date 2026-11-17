@@ -9,6 +9,7 @@ const { MOVES } = require('@smogon/calc/dist/data/moves');
 const { ABILITIES } = require('@smogon/calc/dist/data/abilities');
 const { Dex } = require('@pkmn/dex');
 const db = require('./db');
+const { searchGuide } = require('./guide-search');
 
 const app = express();
 const PORT = process.env.PORT || 3100;
@@ -381,6 +382,14 @@ app.get('/api/move-types', (req, res) => {
 
 app.get('/api/guide', (req, res) => {
   res.json(guide);
+});
+
+app.post('/api/ask', (req, res) => {
+  const body = req.body || {};
+  const q = String(body.q || '').trim().slice(0, 300);
+  const progress = body.progress && typeof body.progress === 'object' ? body.progress : {};
+  try { res.json(searchGuide(q, progress)); }
+  catch (e) { res.status(500).json({ error: 'recherche impossible' }); }
 });
 
 app.get('/api/progress', async (req, res) => {

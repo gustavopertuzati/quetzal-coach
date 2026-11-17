@@ -442,6 +442,142 @@ function renderRun() {
   }));
 }
 
+function renderAskAnswer(r) {
+  const box = $('#askAnswer');
+  if (!box) return;
+  let html = `<div class="card ask-answer">
+    <div class="ask-q">${esc(r.question || '')}</div>
+    <div class="ask-a">${esc(r.answer || '')}</div>`;
+  if (r.gym) {
+    html += `<div class="ask-card-team">${(r.gym.team || []).map(t => `<span>${esc(t)}</span>`).join('')}</div>`;
+    html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+      ${r.gym.trainerId ? `<button class="chip" data-ask-trainer="${esc(r.gym.trainerId)}">Fiche dresseur</button>` : ''}
+      ${r.gym.trainerId ? `<button class="chip" data-ask-matchup="${esc(r.gym.trainerId)}">Matchup</button>` : ''}
+    </div>`;
+  }
+  if (r.route) {
+    const statusLabel = { todo: 'À faire', caught: 'Capturé', missed: 'Raté', dupe: 'Doublon' }[r.route.status] || r.route.status;
+    html += `<div class="ask-card-team"><span>${esc(statusLabel)}</span>${r.route.species ? `<span>${esc(r.route.species)}</span>` : ''}</div>`;
+  }
+  if (r.sources && r.sources.length) {
+    html += `<details class="ask-sources"><summary>Sources du guide (${r.sources.length})</summary>`;
+    for (const s of r.sources) {
+      html += `<div class="ask-source"><a href="${esc(s.url)}" target="_blank" rel="noopener">Guide p${s.page}</a><div class="ask-excerpt">${esc(s.excerpt)}</div></div>`;
+    }
+    html += `</details>`;
+  }
+  html += `</div>`;
+  box.innerHTML = html;
+  box.querySelectorAll('[data-ask-trainer]').forEach(b => b.addEventListener('click', () => openTrainer(b.dataset.askTrainer)));
+  box.querySelectorAll('[data-ask-matchup]').forEach(b => b.addEventListener('click', () => {
+    state.selectedTrainer = state.trainers.find(t => t.id === b.dataset.askMatchup) || null;
+    setView('matchup');
+    const sel = $('#trainerSelect');
+    if (sel && state.selectedTrainer) sel.value = state.selectedTrainer.id;
+    runMatchup();
+  }));
+}
+
+async function askGuide() {
+  const input = $('#askInput');
+  const box = $('#askAnswer');
+  if (!input || !box) return;
+  const q = input.value.trim();
+  if (!q) return;
+  if (!state.progress) {
+    const s = selectedSave();
+    if (s) await loadProgress(s.profile, s.player);
+  }
+  box.innerHTML = '<div class="pill">Recherche dans le guide…</div>';
+  try {
+    const r = await json('/api/ask', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ q, progress: state.progress || {} }),
+    });
+    renderAskAnswer(r);
+  } catch (e) {
+    box.innerHTML = `<div class="pill" style="color:var(--red)">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
+// ---- Entrée vocale française (Web Speech API) ----
+let askRecognition = null;
+let askListening = false;
+
+function setAskVoiceStatus(text) {
+  const el = $('#askVoiceStatus');
+  if (el) el.textContent = text || '';
+}
+
+function initVoiceAsk() {
+  const btn = $('#askMic');
+  if (!btn) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    btn.classList.add('unsupported');
+    btn.addEventListener('click', () => setAskVoiceStatus('La reconnaissance vocale n’est pas disponible sur ce navigateur. Utilise Chrome ou Edge.'));
+    return;
+  }
+  askRecognition = new SR();
+  askRecognition.lang = 'fr-FR';
+  askRecognition.continuous = false;
+  askRecognition.interimResults = true;
+  askRecognition.maxAlternatives = 1;
+
+  askRecognition.onstart = () => {
+    askListening = true;
+    btn.classList.add('listening');
+    setAskVoiceStatus('🎤 Écoute… parle en français.');
+  };
+  askRecognition.onend = () => {
+    askListening = false;
+    btn.classList.remove('listening');
+  };
+  askRecognition.onerror = (e) => {
+    askListening = false;
+    btn.classList.remove('listening');
+    const map = {
+      'not-allowed': 'Micro refusé. Autorise le microphone dans le navigateur.',
+      'service-not-allowed': 'Micro refusé. Autorise le microphone dans le navigateur.',
+      'no-speech': 'Je n’ai rien entendu. Réessaie en parlant plus près du micro.',
+      'audio-capture': 'Aucun microphone détecté.',
+      network: 'Reconnaissance vocale indisponible (réseau).',
+      aborted: '',
+    };
+    setAskVoiceStatus(map[e.error] || ('Erreur micro : ' + e.error));
+  };
+  askRecognition.onresult = (e) => {
+    let text = '';
+    let final = false;
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      text += e.results[i][0].transcript;
+      if (e.results[i].isFinal) final = true;
+    }
+    const input = $('#askInput');
+    if (input) input.value = text.trim();
+    if (final) {
+      setAskVoiceStatus('🎤 Question reconnue, recherche…');
+      try { askRecognition.stop(); } catch (e) {}
+      askGuide();
+    }
+  };
+
+  btn.addEventListener('click', () => {
+    if (askListening) {
+      try { askRecognition.stop(); } catch (e) {}
+      return;
+    }
+    setAskVoiceStatus('🎤 Demande l’accès au micro…');
+    try { askRecognition.start(); }
+    catch (e) {
+      setAskVoiceStatus('Impossible de démarrer le micro. Réessaie.');
+    }
+  });
+}
+
+
+
 
 
 function statLabel(key) {
@@ -1486,6 +1622,18 @@ async function init() {
   if (runSearch) runSearch.addEventListener('input', (e) => {
     state.runFilter = e.target.value;
     renderRun();
+  });
+  initVoiceAsk();
+  const askBtn = $('#askBtn');
+  if (askBtn) askBtn.addEventListener('click', askGuide);
+  const askInput = $('#askInput');
+  if (askInput) askInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') askGuide(); });
+  const askSuggest = $('#askSuggest');
+  if (askSuggest) askSuggest.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ask]');
+    if (!b) return;
+    if (askInput) askInput.value = b.dataset.ask;
+    askGuide();
   });
   $('#ideaFab').addEventListener('click', openIdeas);
   $('#logoutBtn').addEventListener('click', () => {
