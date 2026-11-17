@@ -24,6 +24,11 @@ let moveTypes = {};
 try { moveTypes = JSON.parse(fs.readFileSync(MOVE_TYPES_FILE, 'utf8')); } catch (e) { moveTypes = {}; }
 if (!moveTypes || typeof moveTypes !== 'object' || Array.isArray(moveTypes)) moveTypes = {};
 
+// Guide Nuzlocke (caps, arenes, routes) issu du guide communautaire.
+const GUIDE_FILE = path.join(__dirname, 'data', 'guide.json');
+let guide = {};
+try { guide = JSON.parse(fs.readFileSync(GUIDE_FILE, 'utf8')); } catch (e) { guide = {}; }
+
 // Nuzlocke et sauvegardes : stockes en base (PostgreSQL sur Orkestr).
 // Les donnees arrivent par /api/sync depuis le PC qui lit les .sav.
 
@@ -374,6 +379,23 @@ app.get('/api/move-types', (req, res) => {
   res.json(moveTypes);
 });
 
+app.get('/api/guide', (req, res) => {
+  res.json(guide);
+});
+
+app.get('/api/progress', async (req, res) => {
+  try { res.json(await db.getProgress(req.query.profile, Number(req.query.player))); }
+  catch (e) { res.status(500).json({ error: 'db error' }); }
+});
+
+app.post('/api/progress', async (req, res) => {
+  const body = req.body || {};
+  const p = body.progress && typeof body.progress === 'object' ? body.progress : null;
+  if (!p) return res.status(400).json({ error: 'progress manquant' });
+  try { res.json(await db.setProgress(body.profile, Number(body.player), p)); }
+  catch (e) { res.status(500).json({ error: 'db error' }); }
+});
+
 app.get('/api/nuzlocke', async (req, res) => {
   try { res.json(await db.getNuzlocke()); }
   catch (e) { res.status(500).json({ error: 'db error' }); }
@@ -390,7 +412,11 @@ app.post('/api/nuzlocke', async (req, res) => {
 app.get('/api/species', (req, res) => {
   const list = Object.entries(SPECIES[9])
     .filter(([name, s]) => s && !s.isNonstandard && name !== 'N/A' && !/^Missingno/i.test(name))
-    .map(([name, s]) => ({ name, types: s.types, baseStats: s.bs, abilities: s.abilities }))
+    .map(([name, s]) => {
+      const sp = dex.species.get(toID(name));
+      const family = sp && sp.exists ? (sp.baseSpecies || sp.name) : name;
+      return { name, types: s.types, baseStats: s.bs, abilities: s.abilities, family };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
   res.json(list);
 });

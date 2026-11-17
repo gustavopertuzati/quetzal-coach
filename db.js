@@ -7,6 +7,7 @@ const DATA = path.join(__dirname, 'data');
 const SAVES_FILE = path.join(DATA, 'cloud-saves.json');
 const NZ_FILE = path.join(DATA, 'cloud-nuzlocke.json');
 const IDEAS_FILE = path.join(DATA, 'cloud-ideas.json');
+const PROGRESS_FILE = path.join(DATA, 'cloud-progress.json');
 
 const DATABASE_URL = process.env.DATABASE_URL || '';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
@@ -24,9 +25,31 @@ function writeJson(file, value) {
 let memSaves = readJson(SAVES_FILE, []);
 let memNz = readJson(NZ_FILE, readJson(path.join(DATA, 'nuzlocke.json'), {}));
 let memIdeas = readJson(IDEAS_FILE, []);
+let memProgress = readJson(PROGRESS_FILE, {});
 if (!Array.isArray(memSaves)) memSaves = [];
 if (!memNz || typeof memNz !== 'object' || Array.isArray(memNz)) memNz = {};
 if (!Array.isArray(memIdeas)) memIdeas = [];
+if (!memProgress || typeof memProgress !== 'object' || Array.isArray(memProgress)) memProgress = {};
+
+function defaultProgress() {
+  return {
+    badges: 0,
+    routes: {},
+    rules: { dupes: true, levelCap: true, shiny: true, items: false, heal: true },
+    updatedAt: new Date().toISOString(),
+  };
+}
+function progressKey(profile, player) {
+  return String(profile || 'marco') + '|' + Number(player || 1);
+}
+function cleanProgress(p) {
+  return {
+    badges: Math.max(0, Math.min(8, Number(p && p.badges) || 0)),
+    routes: p && p.routes && typeof p.routes === 'object' ? p.routes : {},
+    rules: p && p.rules && typeof p.rules === 'object' ? p.rules : defaultProgress().rules,
+    updatedAt: new Date().toISOString(),
+  };
+}
 
 // ---- GitHub contents API (dépôt privé) ----
 const ghCache = new Map();
@@ -122,6 +145,11 @@ async function init() {
       kind text NOT NULL,
       done boolean NOT NULL DEFAULT false,
       created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS progress (
+      key text PRIMARY KEY,
+      data jsonb NOT NULL,
+      updated_at timestamptz NOT NULL DEFAULT now()
     );
   `);
   const nzCount = await pool.query('SELECT count(*)::int AS n FROM nuzlocke');
@@ -276,6 +304,42 @@ async function deleteIdea(id) {
   await pool.query('DELETE FROM ideas WHERE id=$1', [id]);
 }
 
+// ---- progression Nuzlocke (badges, routes, règles) ----
+async function getProgress(profile, player) {
+  const key = progressKey(profile, player);
+  if (GITHUB_ENABLED) {
+    const r = await ghGet('progress.json');
+    const all = r.data && typeof r.data === 'object' ? r.data : {};
+    return all[key] || defaultProgress();
+  }
+  if (!pool) return memProgress[key] || defaultProgress();
+  const r = await pool.query('SELECT data FROM progress WHERE key=$1', [key]);
+  return r.rows[0] ? r.rows[0].data : defaultProgress();
+}
+
+async function setProgress(profile, player, p) {
+  const key = progressKey(profile, player);
+  const clean = cleanProgress(p);
+  if (GITHUB_ENABLED) {
+    const r = await ghGet('progress.json', { force: true });
+    const all = r.data && typeof r.data === 'object' ? { ...r.data } : {};
+    all[key] = clean;
+    await ghPut('progress.json', all, r.sha, 'nuzlocke progress');
+    return clean;
+  }
+  if (!pool) {
+    memProgress[key] = clean;
+    writeJson(PROGRESS_FILE, memProgress);
+    return clean;
+  }
+  await pool.query(
+    `INSERT INTO progress(key, data, updated_at) VALUES($1,$2::jsonb,now())
+     ON CONFLICT (key) DO UPDATE SET data=EXCLUDED.data, updated_at=now()`,
+    [key, JSON.stringify(clean)]
+  );
+  return clean;
+}
+
 module.exports = {
   init,
   storageMode,
@@ -287,4 +351,6 @@ module.exports = {
   addIdea,
   patchIdea,
   deleteIdea,
+  getProgress,
+  setProgress,
 };

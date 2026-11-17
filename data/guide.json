@@ -1,0 +1,196 @@
+{
+  "source": "https://fr.scribd.com/document/816586839/Pokemon-Quetzal-Emerald-Encounters-and-Tutorial-walkthrough-2025",
+  "calameo": "https://www.calameo.com/read/007769085212f59ea07e3",
+  "gyms": [
+    {
+      "order": 1,
+      "badge": "Roche",
+      "name": "Roxanne",
+      "trainerId": "roxanne-20",
+      "type": "Rock",
+      "location": "Rustboro City",
+      "levelCap": 15,
+      "team": ["Alolan Geodude", "Glimmet", "Aerodactyl"],
+      "guidePage": 30,
+      "tips": [
+        "Wooper avec Mud Shot contre Alolan Geodude.",
+        "Diglett / Mud-Slap pour Glimmet (speed line 41).",
+        "Un Pokémon Vol ou Intimidate pour gérer Bulldoze d'Aerodactyl.",
+        "Attention au Tera Ghost d'Alolan Geodude si le Tera est activé."
+      ]
+    },
+    {
+      "order": 2,
+      "badge": "Combat",
+      "name": "Brawly",
+      "trainerId": "brawly-39",
+      "type": "Fighting",
+      "location": "Dewford Town",
+      "levelCap": 19,
+      "team": ["Scraggy", "Flamigo", "Lucario"],
+      "guidePage": 43,
+      "tips": [
+        "Umbreon avec Yawn + Charm, puis Pinsir Swords Dance ou Sigilyph Calm Mind.",
+        "Lucario frappe très fort : vérifier la speed line 63.",
+        "Un type Psy ou Vol aide beaucoup contre le combat."
+      ]
+    },
+    {
+      "order": 3,
+      "badge": "Électrik",
+      "name": "Wattson",
+      "trainerId": "wattson-83",
+      "type": "Electric",
+      "location": "Mauville City",
+      "levelCap": 24,
+      "team": ["Luxray", "Kilowattrel", "Rotom-Wash", "Mega Manectric"],
+      "guidePage": 57,
+      "tips": [
+        "Un type Sol est presque obligatoire.",
+        "Attention à Mega Manectric (speed line 101) et à Rotom-Wash.",
+        "Kilowattrel peut placer Tailwind : ne pas laisser le combat traîner."
+      ]
+    },
+    {
+      "order": 4,
+      "badge": "Feu",
+      "name": "Flannery",
+      "trainerId": "flannery-183",
+      "type": "Fire",
+      "location": "Lavaridge Town",
+      "levelCap": 29,
+      "team": ["Torkoal", "Emboar", "Scovillain", "Mega Houndoom"],
+      "guidePage": 69,
+      "tips": [
+        "Eau / Sol. Eevee Yawn puis Gyarados ou Kleavor peut sweeper.",
+        "Torkoal a Explosion : prévoir un sacrifiable ou finir vite.",
+        "Mega Houndoom est rapide (speed line 107)."
+      ]
+    },
+    {
+      "order": 5,
+      "badge": "Normal",
+      "name": "Norman",
+      "trainerId": "norman-204",
+      "type": "Normal",
+      "location": "Petalburg City",
+      "levelCap": 31,
+      "team": ["Staraptor", "Maushold", "Obstagoon", "Mega Kangaskhan"],
+      "guidePage": 88,
+      "tips": [
+        "Un type Combat et des dégâts physiques suffisent souvent.",
+        "Maushold Population Bomb peut faire très mal.",
+        "Mega Kangaskhan est le vrai danger ; speed line 112."
+      ]
+    },
+    {
+      "order": 6,
+      "badge": "Vol",
+      "name": "Winona",
+      "trainerId": "winona-298",
+      "type": "Flying",
+      "location": "Fortree City",
+      "levelCap": 33,
+      "team": ["Bombirdier", "Togekiss", "Gliscor", "Corviknight", "Mega Pidgeot"],
+      "guidePage": 106,
+      "tips": [
+        "Électrique / Roche / Glace.",
+        "Attention à Mega Pidgeot et aux attaques de priorité.",
+        "Corviknight est bulky : prévoir une attaque super efficace."
+      ]
+    },
+    {
+      "order": 7,
+      "badge": "Psy",
+      "name": "Tate & Liza",
+      "trainerId": "tate-liza-383",
+      "type": "Psychic",
+      "location": "Mossdeep City",
+      "levelCap": 42,
+      "team": ["Indeedee ♂", "Espathra", "Mega Alakazam", "Mega Gardevoir"],
+      "guidePage": 136,
+      "tips": [
+        "Combat en double : prévoir deux Pokémon solides.",
+        "Ténèbres / Spectre / Insecte.",
+        "Un seul Mega autorisé dans leur équipe ; identifier le danger principal."
+      ]
+    },
+    {
+      "order": 8,
+      "badge": "Eau",
+      "name": "Juan",
+      "trainerId": "juan-481",
+      "type": "Water",
+      "location": "Sootopolis City",
+      "levelCap": 46,
+      "team": ["Golisopod", "Gastrodon", "Quaquaval", "Jellicent", "Mega Slowbro"],
+      "guidePage": 152,
+      "tips": [
+        "Électrique / Plante.",
+        "Golisopod a First Impression : attention au premier tour.",
+        "Mega Slowbro est très bulky ; prévoir du statut ou une attaque dédiée."
+      ]
+    }
+  ],
+  "eliteFour": {
+    "name": "Ligue Pokémon",
+    "levelCap": 58,
+    "guidePage": 162,
+    "tips": [
+      "Cap de la Ligue : 58.",
+      "Prévoir une équipe polyvalente et des objets de soin.",
+      "Vérifier les types et les vitesses avant chaque combat."
+    ]
+  },
+  "routes": [
+    { "name": "Route 101", "era": "early", "guidePage": 26 },
+    { "name": "Route 103", "era": "early", "guidePage": 27 },
+    { "name": "Route 102", "era": "early", "guidePage": 33 },
+    { "name": "Petalburg City (eau)", "era": "early", "guidePage": 34 },
+    { "name": "Route 104", "era": "early", "guidePage": 35 },
+    { "name": "Petalburg Woods", "era": "early", "guidePage": 36 },
+    { "name": "Rustboro Tunnel", "era": "early", "guidePage": 39 },
+    { "name": "Route 115", "era": "early", "guidePage": 39 },
+    { "name": "Dewford Town (eau)", "era": "early", "guidePage": 45 },
+    { "name": "Route 106", "era": "early", "guidePage": 46 },
+    { "name": "Route 107", "era": "early", "guidePage": 47 },
+    { "name": "Granite Cave", "era": "early", "guidePage": 49 },
+    { "name": "Route 109", "era": "early", "guidePage": 58 },
+    { "name": "Slateport City (eau)", "era": "early", "guidePage": 60 },
+    { "name": "Route 110", "era": "early", "guidePage": 62 },
+    { "name": "Route 117", "era": "early", "guidePage": 66 },
+    { "name": "Route 111", "era": "early", "guidePage": 70 },
+    { "name": "Route 112", "era": "early", "guidePage": 73 },
+    { "name": "Route 113", "era": "early", "guidePage": 76 },
+    { "name": "Route 114", "era": "early", "guidePage": 81 },
+    { "name": "Meteor Falls", "era": "early", "guidePage": 82 },
+    { "name": "Fiery Path", "era": "early", "guidePage": 72 },
+    { "name": "Jagged Pass", "era": "early", "guidePage": 78 },
+    { "name": "Lavaridge Town", "era": "early", "guidePage": 69 },
+    { "name": "Route 118", "era": "mid", "guidePage": 89 },
+    { "name": "Route 119", "era": "mid", "guidePage": 92 },
+    { "name": "Route 120", "era": "mid", "guidePage": 107 },
+    { "name": "Route 121", "era": "mid", "guidePage": 109 },
+    { "name": "Safari Zone", "era": "mid", "guidePage": 110 },
+    { "name": "Route 122", "era": "mid", "guidePage": 94 },
+    { "name": "Route 123", "era": "mid", "guidePage": 124 },
+    { "name": "Route 124", "era": "mid", "guidePage": 128 },
+    { "name": "Route 125", "era": "mid", "guidePage": 138 },
+    { "name": "Route 126", "era": "mid", "guidePage": 130 },
+    { "name": "Route 127", "era": "mid", "guidePage": 139 },
+    { "name": "Route 128", "era": "mid", "guidePage": 140 },
+    { "name": "Route 129", "era": "mid", "guidePage": 146 },
+    { "name": "Route 130", "era": "mid", "guidePage": 83 },
+    { "name": "Route 131", "era": "mid", "guidePage": 143 },
+    { "name": "Route 132", "era": "mid", "guidePage": 147 },
+    { "name": "Route 133", "era": "mid", "guidePage": 148 },
+    { "name": "Route 134", "era": "mid", "guidePage": 94 },
+    { "name": "Mossdeep City (eau)", "era": "mid", "guidePage": 137 },
+    { "name": "Shoal Cave", "era": "mid", "guidePage": 141 },
+    { "name": "Sootopolis City (eau)", "era": "late", "guidePage": 153 },
+    { "name": "Seafloor Cavern", "era": "late", "guidePage": 153 },
+    { "name": "Sky Pillar", "era": "late", "guidePage": 155 },
+    { "name": "Victory Road", "era": "late", "guidePage": 160 },
+    { "name": "Ever Grande City", "era": "late", "guidePage": 162 }
+  ]
+}

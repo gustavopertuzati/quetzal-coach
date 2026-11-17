@@ -40,6 +40,12 @@ const state = {
   saveSlot: null,
   saveTab: null,
   nuzlocke: {},
+  guide: null,
+  speciesFamily: new Map(),
+  progress: null,
+  progressCtx: null,
+  progressTimer: null,
+  runFilter: '',
   ideas: [],
   gameTimer: null,
   gateTimer: null,
@@ -187,6 +193,255 @@ function bindDeadToggles(root) {
     });
   });
 }
+
+// ---- Run Nuzlocke : guide, level caps, routes ----
+function defaultProgress() {
+  return {
+    badges: 0,
+    routes: {},
+    rules: { dupes: true, levelCap: true, shiny: true, items: false, heal: true },
+  };
+}
+
+async function loadGuide() {
+  try { state.guide = await json('/api/guide'); }
+  catch (e) { state.guide = { gyms: [], routes: [], eliteFour: {} }; }
+  return state.guide;
+}
+
+async function loadProgress(profile, player) {
+  try {
+    state.progress = await json('/api/progress?profile=' + encodeURIComponent(profile) + '&player=' + Number(player));
+  } catch (e) {
+    state.progress = defaultProgress();
+  }
+  if (!state.progress || typeof state.progress !== 'object') state.progress = defaultProgress();
+  if (!state.progress.routes) state.progress.routes = {};
+  if (!state.progress.rules) state.progress.rules = defaultProgress().rules;
+  state.progressCtx = { profile, player: Number(player) };
+  return state.progress;
+}
+
+function setRunSync(text, cls) {
+  const el = $('#runSync');
+  if (!el) return;
+  el.textContent = text || '';
+  el.className = 'sync-line' + (cls ? ' ' + cls : '');
+}
+
+function saveProgress() {
+  if (!state.progress || !state.progressCtx) return;
+  clearTimeout(state.progressTimer);
+  state.progressTimer = setTimeout(async () => {
+    try {
+      const p = await json('/api/progress', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          profile: state.progressCtx.profile,
+          player: state.progressCtx.player,
+          progress: state.progress,
+        }),
+      });
+      state.progress = p;
+      setRunSync('Enregistré · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), 'ok');
+    } catch (e) {
+      setRunSync('Hors ligne — progression non enregistrée', 'err');
+    }
+  }, 450);
+}
+
+function familyOf(name) {
+  return (state.speciesFamily && state.speciesFamily.get(name)) || name;
+}
+
+function ownedFamilyCounts(save) {
+  const counts = new Map();
+  for (const m of [...(save.party || []), ...(save.boxes || [])]) {
+    const f = familyOf(m.species);
+    counts.set(f, (counts.get(f) || 0) + 1);
+  }
+  return counts;
+}
+
+function isDuplicateSpecies(species, save) {
+  if (!species) return false;
+  const f = familyOf(species);
+  return (ownedFamilyCounts(save).get(f) || 0) > 1;
+}
+
+function currentCap(p) {
+  const g = state.guide && state.guide.gyms;
+  if (!g || !g.length) return 15;
+  if (p.badges >= 8) return (state.guide.eliteFour && state.guide.eliteFour.levelCap) || 58;
+  return (g[p.badges] && g[p.badges].levelCap) || 15;
+}
+
+function nextRunTarget(p) {
+  const g = state.guide && state.guide.gyms;
+  if (!g || !g.length) return null;
+  if (p.badges >= 8) return state.guide.eliteFour || null;
+  return g[p.badges] || null;
+}
+
+function runCtx() {
+  const save = selectedSave();
+  if (!save) return null;
+  return { save, profile: save.profile, player: save.player };
+}
+
+function renderRun() {
+  const box = $('#runDashboard');
+  if (!box) return;
+  if (!state.guide) { loadGuide().then(() => { if (state.view === 'run') renderRun(); }); return; }
+  const ctx = runCtx();
+  if (!ctx) {
+    box.innerHTML = '<div class="empty">Aucune sauvegarde trouvée.</div>';
+    return;
+  }
+  const save = ctx.save;
+  if (!state.progress || !state.progressCtx || state.progressCtx.profile !== save.profile || state.progressCtx.player !== save.player) {
+    loadProgress(save.profile, save.player).then(() => { if (state.view === 'run') renderRun(); });
+    return;
+  }
+  const p = state.progress;
+  const guide = state.guide;
+  const cap = currentCap(p);
+  const next = nextRunTarget(p);
+  const deadCtx = { profile: save.profile, player: save.player };
+  const dead = Object.keys(state.nuzlocke || {}).filter(k => k.startsWith(save.profile + '|' + save.player + '|')).length;
+  const alive = (save.party || []).filter(m => !isDead(deadCtx, m)).length;
+  const caught = Object.values(p.routes || {}).filter(r => r && r.status === 'caught').length;
+  const totalRoutes = (guide.routes || []).length;
+
+  const players = $('#runPlayers');
+  players.innerHTML = state.saves.map(x => `
+    <button class="chip ${x.profile === save.profile && x.player === save.player ? 'active' : ''}"
+      data-run-profile="${esc(x.profile)}" data-run-player="${x.player}">
+      ${esc(x.trainerName || x.label)}
+      <small>J${x.player} · ${x.partyCount + x.boxCount} Pokémon</small>
+    </button>`).join('');
+
+  box.innerHTML = `
+    <div class="pill">Badges : <b>${p.badges}/8</b></div>
+    <div class="pill">Cap : <b>${cap}</b></div>
+    <div class="pill">Prochaine : <b>${esc(next ? next.name : 'Ligue')}</b></div>
+    <div class="pill">☠ <b>${dead}</b></div>
+    <div class="pill">Captures : <b>${caught}/${totalRoutes}</b></div>
+    <div class="pill">Équipe : <b>${alive}/${(save.party || []).length}</b></div>`;
+
+  let nextHtml = '<div class="badge-track">';
+  for (let i = 0; i <= 8; i++) nextHtml += `<button data-badge="${i}" class="${i === p.badges ? 'active' : ''}">${i}</button>`;
+  nextHtml += '</div>';
+  if (next) {
+    const warnings = (save.party || []).filter(m => Number(m.level) > Number(next.levelCap || 999));
+    nextHtml += `<article class="card gym-card">
+      <div class="gym-head"><h3>${esc(next.name)}</h3><span class="badge">${esc(next.type || 'Ligue')}</span></div>
+      <div class="gym-meta">${esc(next.location || '')}${next.levelCap ? ' · Cap ' + next.levelCap : ''}</div>
+      ${next.team && next.team.length ? `<div class="gym-team">${next.team.map(t => `<span>${esc(t)}</span>`).join('')}</div>` : ''}
+      ${next.tips && next.tips.length ? `<ul class="tip-list">${next.tips.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        ${next.trainerId ? `<button class="chip" data-run-trainer="${esc(next.trainerId)}">Fiche dresseur</button>` : ''}
+        ${next.trainerId ? `<button class="chip" data-run-matchup="${esc(next.trainerId)}">Matchup</button>` : ''}
+      </div>
+      ${warnings.length
+        ? `<div class="cap-warning">Au-dessus du cap ${next.levelCap} : ${warnings.map(m => esc(m.nickname || m.species) + ' Nv.' + m.level).join(' · ')}</div>`
+        : '<div class="cap-ok">Toute l’équipe est sous le cap.</div>'}
+    </article>`;
+  }
+  $('#runNext').innerHTML = nextHtml;
+
+  const rules = p.rules || {};
+  $('#runRules').innerHTML = `
+    <label class="rule-toggle"><input type="checkbox" data-rule="dupes" ${rules.dupes ? 'checked' : ''}> Dupes clause</label>
+    <label class="rule-toggle"><input type="checkbox" data-rule="levelCap" ${rules.levelCap ? 'checked' : ''}> Level cap</label>
+    <label class="rule-toggle"><input type="checkbox" data-rule="shiny" ${rules.shiny ? 'checked' : ''}> Shiny clause</label>
+    <label class="rule-toggle"><input type="checkbox" data-rule="items" ${rules.items ? 'checked' : ''}> Objets autorisés</label>
+    <label class="rule-toggle"><input type="checkbox" data-rule="heal" ${rules.heal ? 'checked' : ''}> Soins autorisés</label>`;
+
+  const q = (state.runFilter || '').toLowerCase();
+  const routes = (guide.routes || []).filter(r => !q || r.name.toLowerCase().includes(q) || String((p.routes[r.name] || {}).species || '').toLowerCase().includes(q));
+  const eras = [['early', 'Début'], ['mid', 'Milieu'], ['late', 'Fin']];
+  let routesHtml = '';
+  for (const [era, label] of eras) {
+    const list = routes.filter(r => (r.era || 'mid') === era);
+    if (!list.length) continue;
+    routesHtml += `<div class="route-era">${label}</div>`;
+    for (const r of list) {
+      const entry = p.routes[r.name] || {};
+      const status = entry.status || 'todo';
+      const species = entry.species || '';
+      const dupe = status === 'caught' && isDuplicateSpecies(species, save);
+      const page = r.guidePage ? `<a class="route-page" href="${esc(guide.calameo || guide.source)}?page=${r.guidePage}" target="_blank" rel="noopener">guide p${r.guidePage}</a>` : '';
+      routesHtml += `<div class="route-row">
+        <div class="route-name">${esc(r.name)} ${page}</div>
+        <select class="route-status ${status}" data-route="${esc(r.name)}">
+          <option value="todo" ${status === 'todo' ? 'selected' : ''}>À faire</option>
+          <option value="caught" ${status === 'caught' ? 'selected' : ''}>Capturé</option>
+          <option value="missed" ${status === 'missed' ? 'selected' : ''}>Raté</option>
+          <option value="dupe" ${status === 'dupe' ? 'selected' : ''}>Doublon</option>
+        </select>
+        <input class="route-species" list="runSpeciesDatalist" data-route-species="${esc(r.name)}" value="${esc(species)}" placeholder="Espèce capturée…">
+        ${dupe ? '<div class="dupe-flag">⚠ Doublon : cette famille est déjà dans l’équipe ou les boîtes.</div>' : ''}
+      </div>`;
+    }
+  }
+  $('#runRoutes').innerHTML = routesHtml || '<div class="empty">Aucune route ne correspond.</div>';
+  $('#runSource').innerHTML = `Guide source : <a href="${esc(guide.source || '#')}" target="_blank" rel="noopener">Scribd</a> · <a href="${esc(guide.calameo || '#')}" target="_blank" rel="noopener">Calaméo</a>`;
+  $('#runSync').className = 'sync-line';
+
+  players.querySelectorAll('[data-run-profile]').forEach(b => b.addEventListener('click', async () => {
+    const profile = b.dataset.runProfile;
+    const player = Number(b.dataset.runPlayer);
+    state.saveTab = { profile, player };
+    localStorage.setItem(SAVE_TAB_KEY, profile + ':' + player);
+    const x = saveByKey(profile, player);
+    if (x && state.source === 'save') {
+      state.saveSlot = { profile, player };
+      state.team = saveToClientTeam(x);
+      localStorage.setItem(WHO_KEY, 'save:' + profile + ':' + player);
+      updateWhoButton();
+    }
+    await loadProgress(profile, player);
+    renderRun();
+  }));
+  box.parentElement.querySelectorAll('[data-badge]').forEach(b => b.addEventListener('click', () => {
+    p.badges = Number(b.dataset.badge);
+    saveProgress();
+    renderRun();
+  }));
+  box.parentElement.querySelectorAll('[data-rule]').forEach(cb => cb.addEventListener('change', () => {
+    p.rules[cb.dataset.rule] = cb.checked;
+    saveProgress();
+  }));
+  box.parentElement.querySelectorAll('[data-run-trainer]').forEach(b => b.addEventListener('click', () => {
+    openTrainer(b.dataset.runTrainer);
+  }));
+  box.parentElement.querySelectorAll('[data-run-matchup]').forEach(b => b.addEventListener('click', () => {
+    state.selectedTrainer = state.trainers.find(t => t.id === b.dataset.runMatchup) || null;
+    setView('matchup');
+    const sel = $('#trainerSelect');
+    if (sel && state.selectedTrainer) sel.value = state.selectedTrainer.id;
+    runMatchup();
+  }));
+  box.parentElement.querySelectorAll('[data-route]').forEach(sel => sel.addEventListener('change', () => {
+    const name = sel.dataset.route;
+    const e = p.routes[name] || {};
+    e.status = sel.value;
+    p.routes[name] = e;
+    saveProgress();
+    renderRun();
+  }));
+  box.parentElement.querySelectorAll('[data-route-species]').forEach(inp => inp.addEventListener('change', () => {
+    const name = inp.dataset.routeSpecies;
+    const e = p.routes[name] || {};
+    e.species = inp.value.trim();
+    p.routes[name] = e;
+    saveProgress();
+    renderRun();
+  }));
+}
+
 
 
 function statLabel(key) {
@@ -559,6 +814,7 @@ async function chooseGame(slot) {
 async function chooseSave(profile, player) {
   await loadSaves();
   await loadNuzlocke();
+  await loadProgress(profile, player);
   const s = saveByKey(profile, player);
   if (!s) { await openGate(); return; }
   enterFullscreen();
@@ -585,6 +841,7 @@ async function refreshSaveTeam() {
   if (state.source !== 'save' || !state.saveSlot || document.hidden) return;
   await loadSaves(true);
   await loadNuzlocke();
+  await loadProgress(state.saveSlot.profile, state.saveSlot.player);
   const s = saveByKey(state.saveSlot.profile, state.saveSlot.player);
   if (!s) return;
   const next = saveToClientTeam(s);
@@ -594,6 +851,7 @@ async function refreshSaveTeam() {
       renderTeam();
       renderBoxes();
     }
+    if (state.view === 'run') renderRun();
     if (state.view === 'matchup') renderMatchup();
     updateSyncLine('Sauvegarde mise à jour · ' + saveDate(s.updatedAt), 'ok');
   }
@@ -694,6 +952,7 @@ function setView(name) {
   $$('.bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.view === name));
   if (name === 'team') renderTeam();
   if (name === 'boxes') renderBoxes();
+  if (name === 'run') renderRun();
   if (name === 'matchup') renderMatchup();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1186,15 +1445,19 @@ async function init() {
     $('#saveChoices').innerHTML = '<div class="empty">Recherche des sauvegardes…</div>';
   }
   try {
-    const [trainers, species, moves, abilities] = await Promise.all([
-      json('/api/trainers'), json('/api/species'), json('/api/moves'), json('/api/abilities'),
+    const [trainers, species, moves, abilities, guide] = await Promise.all([
+      json('/api/trainers'), json('/api/species'), json('/api/moves'), json('/api/abilities'), json('/api/guide'),
     ]);
     state.trainers = trainers;
     state.species = species;
     state.speciesMap = new Map(species.map(s => [s.name, s]));
+    state.speciesFamily = new Map(species.map(s => [s.name, s.family || s.name]));
     state.moves = moves;
     state.abilities = abilities;
+    state.guide = guide;
     fillDatalists();
+    const runSpecies = $('#runSpeciesDatalist');
+    if (runSpecies) runSpecies.innerHTML = species.map(s => `<option value="${esc(s.name)}">`).join('');
     renderTrainers();
   } catch (e) {
     $('#trainerList').innerHTML = '<div class="empty">Serveur indisponible : ' + esc(e.message) + '</div>';
@@ -1219,6 +1482,11 @@ async function init() {
     await loadNuzlocke();
     renderBoxes();
   });
+  const runSearch = $('#runRouteSearch');
+  if (runSearch) runSearch.addEventListener('input', (e) => {
+    state.runFilter = e.target.value;
+    renderRun();
+  });
   $('#ideaFab').addEventListener('click', openIdeas);
   $('#logoutBtn').addEventListener('click', () => {
     localStorage.removeItem(WHO_KEY);
@@ -1228,6 +1496,8 @@ async function init() {
     state.gameSlot = null;
     state.saveSlot = null;
     state.team = [];
+    state.progress = null;
+    state.progressCtx = null;
     clearInterval(state.gameTimer);
     clearInterval(state.pollTimer);
     clearInterval(state.saveRefreshTimer);
@@ -1235,6 +1505,7 @@ async function init() {
     updateSyncLine('');
     renderGate();
     renderBoxes();
+    renderRun();
   });
   loadIdeas();
   if ('serviceWorker' in navigator) {

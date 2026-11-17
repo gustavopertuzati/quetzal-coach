@@ -75,12 +75,30 @@
       <div id="saveMeta" class="sync-line"></div>
       <div id="saveBoxes"></div>
     </section>
+
+    <section id="view-run" class="view">
+      <div class="section-head">
+        <h2>Run Nuzlocke</h2>
+        <span id="runSync" class="sync-line"></span>
+      </div>
+      <div id="runPlayers" class="chips save-players"></div>
+      <div id="runDashboard" class="summary"></div>
+      <div id="runNext"></div>
+      <div id="runRules" class="run-rules"></div>
+      <div class="section-head" style="margin-top:16px">
+        <h2 style="font-size:15px">Routes & captures</h2>
+        <input id="runRouteSearch" class="run-search" placeholder="Filtrer…" autocomplete="off">
+      </div>
+      <div id="runRoutes" class="run-routes"></div>
+      <p class="hint" id="runSource"></p>
+    </section>
   </main>
 
   <nav class="bottom-nav">
     <button data-view="trainers" class="active">Dresseurs</button>
     <button data-view="team">Équipe</button>
     <button data-view="boxes">Boîtes</button>
+    <button data-view="run">Run</button>
     <button data-view="matchup">Matchup</button>
   </nav>
 
@@ -111,6 +129,7 @@
 
   <datalist id="movesDatalist"></datalist>
   <datalist id="abilitiesDatalist"></datalist>
+  <datalist id="runSpeciesDatalist"></datalist>
 
   <script src="app.js"></script>
 </body>
