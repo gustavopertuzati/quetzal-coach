@@ -1626,6 +1626,11 @@ async function init() {
   initVoiceAsk();
   const askBtn = $('#askBtn');
   if (askBtn) askBtn.addEventListener('click', askGuide);
+  const askJump = $('#askJump');
+  if (askJump) askJump.addEventListener('click', () => {
+    setView('run');
+    setTimeout(() => { const el = $('#askInput'); if (el) el.focus(); }, 120);
+  });
   const askInput = $('#askInput');
   if (askInput) askInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') askGuide(); });
   const askSuggest = $('#askSuggest');
